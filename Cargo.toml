@@ -1,0 +1,6 @@
+[package]
+name = "rust-iqm"
+version = "0.1.0"
+authors = ["Josh Vega <jsvcycling.live@gmail.com>"]
+
+[dependencies]
