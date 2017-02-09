@@ -1,12 +1,10 @@
 // Based on: https://github.com/tomaka/glium/blob/master/examples/support/camera.rs
 
-extern crate glutin;
+use glium::glutin::ElementState::{Pressed, Released};
+use glium::glutin::Event;
+use glium::glutin::VirtualKeyCode as KeyCode;
 
-use glutin::ElementState::{Pressed, Released};
-use glutin::Event;
-use glutin::VirtualKeyCode as KeyCode;
-
-struct Camera {
+pub struct Camera {
     aspect_ratio: f32,
     position: (f32, f32, f32),
     direction: (f32, f32, f32),
@@ -196,6 +194,8 @@ impl Camera {
             &Event::KeyboardInput(Released, _, Some(KeyCode::S)) => {
                 self.moving_backward = false;
             },
+
+            _ => {},
         }
     }
 }
