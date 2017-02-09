@@ -60,8 +60,8 @@ fn main() {
         let mut target = display.draw();
         target.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
 
-        for buffer in vertex_buffer {
-            target.draw(&buffer,
+        for buffer in &vertex_buffer {
+            target.draw(buffer,
                         &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
                         &program, &uniforms, &params).unwrap();
         }

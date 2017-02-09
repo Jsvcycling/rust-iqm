@@ -6,6 +6,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use glium::Display;
 use glium::vertex::{VertexBuffer, VertexBufferAny};
 
+#[allow(dead_code)]
 enum IQMVertexArrayType {
     Position = 0,
     TexCoord,
@@ -16,6 +17,7 @@ enum IQMVertexArrayType {
     Color,
 }
 
+#[allow(dead_code)]
 enum IQMVertexArrayFormat {
     Byte = 0,
     UByte,
@@ -35,6 +37,7 @@ const VERSION: u32 = 2;
 // The size (in bytes) of some important IQM structs.
 const SIZE_OF_VERTEX_ARRAY_STRUCT: u32 = 20;
 
+#[allow(unused_variables)]
 pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<VertexBufferAny> {
     #[derive(Clone, Copy)]
     struct Vertex {
@@ -42,7 +45,7 @@ pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<VertexBufferAny> {
         tex_coord: [f32; 2],
         normal: [f32; 3],
     }
-
+    
     implement_vertex!(Vertex,
                       position,
                       tex_coord,
@@ -50,7 +53,7 @@ pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<VertexBufferAny> {
     
     let mut cursor = Cursor::new(data);
 
-    let mut magic: [u8; 16];
+    let mut magic: [u8; 16] = [0; 16];
     cursor.read(&mut magic[..]).unwrap();
 
     // Verify the type of the file.
