@@ -36,7 +36,7 @@ impl Camera {
     pub fn get_perspective_matrix(&self) -> [[f32; 4]; 4] {
         let fov: f32 = 3.141592 / 2.0;
         let z_far = 1024.0;
-        let z_near = 0.1;
+        let z_near = 0.01;
 
         let f = 1.0 / (fov / 2.0).tan();
 

@@ -4,6 +4,7 @@ use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use glium::Display;
+use glium::index::{IndexBuffer, IndexBufferAny, PrimitiveType};
 use glium::vertex::{VertexBuffer, VertexBufferAny};
 
 #[allow(dead_code)]
@@ -35,10 +36,15 @@ const MAGIC: &'static [u8; 16] = b"INTERQUAKEMODEL\0";
 const VERSION: u32 = 2;
 
 // The size (in bytes) of some important IQM structs.
-const SIZE_OF_VERTEX_ARRAY_STRUCT: u32 = 20;
+const SIZE_OF_VA_STRUCT: u32 = 20; // Vertex Array
+
+pub struct Mesh {
+    pub vertex_buffer: VertexBufferAny,
+    pub index_buffer: IndexBufferAny,
+}
 
 #[allow(unused_variables)]
-pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<VertexBufferAny> {
+pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<Mesh> {
     #[derive(Clone, Copy)]
     struct Vertex {
         position: [f32; 3],
@@ -69,6 +75,8 @@ pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<VertexBufferAny> {
     let num_vertex_arrays = cursor.read_u32::<LittleEndian>().unwrap();
     let num_vertices = cursor.read_u32::<LittleEndian>().unwrap();
     let ofs_vertex_arrays = cursor.read_u32::<LittleEndian>().unwrap();
+    let num_triangles = cursor.read_u32::<LittleEndian>().unwrap();
+    let ofs_triangles = cursor.read_u32::<LittleEndian>().unwrap();
 
     // Create the vertex array vectors.
     let mut positions = Vec::new();
@@ -77,7 +85,7 @@ pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<VertexBufferAny> {
 
     // Load the vertex arrays.
     for i in 0..num_vertex_arrays {
-        cursor.seek(SeekFrom::Start((ofs_vertex_arrays + (i * SIZE_OF_VERTEX_ARRAY_STRUCT)) as u64)).unwrap();
+        cursor.seek(SeekFrom::Start((ofs_vertex_arrays + (i * SIZE_OF_VA_STRUCT)) as u64)).unwrap();
 
         let va_type = cursor.read_u32::<LittleEndian>().unwrap();
         let va_flags = cursor.read_u32::<LittleEndian>().unwrap();
@@ -113,9 +121,20 @@ pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<VertexBufferAny> {
             _ => {},
         }
     }
+
+    let mut indices = Vec::new();
+    
+    // Load the indices.
+    for i in 0..num_triangles {
+        cursor.seek(SeekFrom::Start(ofs_triangles as u64)).unwrap();
+
+        for j in 0..3 {
+            indices.push(cursor.read_u32::<LittleEndian>().unwrap());
+        }
+    }
     
     // Create our output vertex buffer vector.
-    let mut buffers = Vec::new();
+    let mut meshes = Vec::new();
 
     // Load the IQM meshes and generate the associated vertex buffers.
     cursor.seek(SeekFrom::Start(ofs_meshes as u64)).unwrap();
@@ -129,13 +148,13 @@ pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<VertexBufferAny> {
         let first_triangle = cursor.read_u32::<LittleEndian>().unwrap();
         let num_triangles = cursor.read_u32::<LittleEndian>().unwrap();
 
-        // Load the selected vertices
-        let mut data = Vec::new();
+        // Load the selected vertices.
+        let mut vert_data = Vec::new();
 
         for j in 0..num_vertices {
             let id = first_vertex + j;
             
-            data.push(Vertex {
+            vert_data.push(Vertex {
                 position: [ positions[(3 * id) as usize],
                             positions[((3 * id) + 1) as usize],
                             positions[((3 * id) + 2) as usize] ],
@@ -146,10 +165,28 @@ pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<VertexBufferAny> {
                           normals[((3 * id) + 2) as usize] ],
             });
         }
+
+        // Load the selected indices.
+        let mut idx_data = Vec::new();
+
+        for j in 0..num_triangles {
+            let id = first_triangle + j;
+
+            idx_data.push(indices[(3 * id) as usize]);
+            idx_data.push(indices[((3 * id) + 1) as usize]);
+            idx_data.push(indices[((3 * id) + 2) as usize]);
+        }
+
+        // Create the buffers.
+        let vert_buffer = VertexBuffer::new(display, &vert_data).unwrap().into_vertex_buffer_any();
+        let idx_buffer = IndexBufferAny::from(IndexBuffer::new(display, PrimitiveType::TrianglesList, &idx_data).unwrap());
         
-        buffers.push(VertexBuffer::new(display, &data).unwrap().into_vertex_buffer_any());
+        meshes.push(Mesh {
+            vertex_buffer: vert_buffer,
+            index_buffer: idx_buffer,
+        });
     }
     
     // Return the vertex buffers.
-    buffers
+    meshes
 }

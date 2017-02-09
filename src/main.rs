@@ -21,7 +21,7 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let vertex_buffer = iqm::load_iqm(&display, include_bytes!("data/mrfixit.iqm"));
+    let meshes = iqm::load_iqm(&display, include_bytes!("data/mrfixit.iqm"));
 
     // Setup Shaders
     let program = program!(&display, 140 => {
@@ -60,9 +60,9 @@ fn main() {
         let mut target = display.draw();
         target.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
 
-        for buffer in &vertex_buffer {
-            target.draw(buffer,
-                        &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+        for mesh in &meshes {
+            target.draw(&mesh.vertex_buffer,
+                        &glium::index::NoIndices(glium::index::PrimitiveType::Points),
                         &program, &uniforms, &params).unwrap();
         }
         
