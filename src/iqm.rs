@@ -125,13 +125,16 @@ pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<Mesh> {
     let mut indices = Vec::new();
     
     // Load the indices.
+    cursor.seek(SeekFrom::Start(ofs_triangles as u64)).unwrap();
+    
     for i in 0..num_triangles {
-        cursor.seek(SeekFrom::Start(ofs_triangles as u64)).unwrap();
-
         for j in 0..3 {
             indices.push(cursor.read_u32::<LittleEndian>().unwrap());
         }
     }
+
+    // Make sure we've loaded the right number of indices.
+    assert_eq!(num_triangles, (indices.len()/3) as u32);
     
     // Create our output vertex buffer vector.
     let mut meshes = Vec::new();

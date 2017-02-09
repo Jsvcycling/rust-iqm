@@ -61,8 +61,8 @@ fn main() {
         target.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
 
         for mesh in &meshes {
-            target.draw(&mesh.vertex_buffer,
-                        &glium::index::NoIndices(glium::index::PrimitiveType::Points),
+            // FIXME: the body is rendering properly, but the head isn't
+            target.draw(&mesh.vertex_buffer, &mesh.index_buffer,
                         &program, &uniforms, &params).unwrap();
         }
         
