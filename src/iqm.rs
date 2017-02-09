@@ -1,13 +1,10 @@
 extern crate byteorder;
 
 use std::io::{Cursor, SeekFrom};
-use std::vec::Vec;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use glium::Display;
-use glium::index::IndexBufferAny;
-use glium::vertex::VertexBufferAny;
-use glium::uniforms::UniformsStorage;
+use glium::vertex::{VertexBuffer, VertexBufferAny};
 
 enum IQMVertexArrayType {
     Position = 0,
@@ -36,67 +33,45 @@ const MAGIC: &[u8; 16] = b"INTERQUAKEMODEL\0";
 const VERSION: u32 = 2;
 
 // The size (in bytes) of some important IQM structs.
-const SIZE_OF_MESH_STRUCT: u32 = 24;
 const SIZE_OF_VERTEX_ARRAY_STRUCT: u32 = 20;
 
-struct Mesh {
-    vertex_buffer: VertexBufferAny,
-    index_buffer: IndexBufferAny,
-    uniform: UniformStorage,
-}
-
-fn load_iqm(display: &Display, data: &[u8]) -> Vec<Mesh> {
+fn load_iqm(display: &Display, data: &[u8]) -> Vec<VertexBufferAny> {
     struct Vertex {
         position: [f32; 3],
         tex_coord: [f32; 2],
         normal: [f32; 3],
-        tangent: [f32; 4],
-        blend_index: [u8; 4],
-        blend_weight: [u8; 4],
-        color: [u8; 4],
     }
 
     implement_vertex!(Vertex,
                       position,
                       tex_coord,
-                      normal,
-                      tangent,
-                      blend_index,
-                      blend_weight,
-                      color);
+                      normal);
     
     let mut cursor = Cursor::new(data);
 
     let mut magic = [u8; 16];
     cursor.read(&mut magic[..])?;
 
+    // Verify the type of the file.
     assert_eq!(MAGIC, magic);
     assert_eq!(VERSION, cursor.read_u32::<LittleEndian>()?);
 
     // Skip some stuff we don't care about.
     cursor.seek(SeekFrom::Current(16))?;
 
+    // Read some more header values.
     let num_meshes = cursor.read_u32::<LittleEndian>()?;
     let ofs_meshes = cursor.read_u32::<LittleEndian>()?;
     let num_vertex_arrays = cursor.read_u32::<LittleEndian>()?;
     let num_vertices = cursor.read_u32::<LittleEndian>()?;
     let ofs_vertex_arrays = cursor.read_u32::<LittleEndian>()?;
-    let num_triangles = cursor.read_u32::<LittleEndian>()?;
-    let ofs_triangles = cursor.read_u32::<LittleEndian>()?;
-
-    // Create the mesh objects.
-    let mut meshes: Vec<Mesh> = Vec::with_capacity(num_meshes);
 
     // Create the vertex array vectors.
     let mut positions: Vec<f32> = Vec::with_capacity(num_vertices * 3);
     let mut tex_coords: Vec<f32> = Vec::with_capacity(num_vertices * 2);
     let mut normals: Vec<f32> = Vec::with_capacity(num_vertices * 3);
-    let mut tangents: Vec<f32> = Vec::with_capacity(num_vertices * 4);
-    let mut blend_indices: Vec<u8> = Vec::with_capacity(num_vertices * 4);
-    let mut blend_weights: Vec<u8> = Vec::with_capacity(num_vertices * 4);
-    let mut colors: Vec<u8> = Vec::with_capacity(num_vertices * 4);
 
-    // Load our vertex arrays
+    // Load the vertex arrays.
     for i in 0..num_vertex_arrays {
         cursor.seek(SeekFrom::Start(ofs_vertex_arrays + (i * SIZE_OF_VERTEX_ARRAY_STRUCT)))?;
 
@@ -120,7 +95,7 @@ fn load_iqm(display: &Display, data: &[u8]) -> Vec<Mesh> {
                 cursor.seek(SeekFrom::Start(va_offset))?;
 
                 for j in 0..(num_vertices * va_size) {
-                    tex_coords[j] = cursor.read_f32::<LittleEndian>()?;
+                    tex_coords[j] = cursor.read_f32::<LittleEndian>().unwrap_or(0.0);
                 }
             },
             IQMVertexArrayType::Normal => {
@@ -128,44 +103,48 @@ fn load_iqm(display: &Display, data: &[u8]) -> Vec<Mesh> {
                 cursor.seek(SeekFrom::Start(va_offset))?;
 
                 for j in 0..(num_vertices * va_size) {
-                    normals[j] = cursor.read_f32::<LittleEndian>()?;
-                }
-            },
-            IQMVertexArrayType::Tangent => {
-                assert_eq!(va_format == IQMVertexArrayFormat::Float && va_size == 4);
-                cursor.seek(SeekFrom::Start(va_offset))?;
-
-                for j in 0..(num_vertices * va_size) {
-                    tangents[j] = cursor.read_f32::<LittleEndian>()?;
-                }
-            },
-            IQMVertexArrayType::BlendIndex => {
-                assert_eq!(va_format == IQMVertexArrayFormat::UByte && va_size == 4);
-                cursor.seek(SeekFrom::Start(va_offset))?;
-
-                for j in 0..(num_vertices * va_size) {
-                    blend_indices[j] = cursor.read_u8()?;
-                }
-            },
-            IQMVertexArrayType::BlendWeight => {
-                assert_eq!(va_format == IQMVertexArrayFormat::UByte && va_size == 4);
-                cursor.seek(SeekFrom::Start(va_offset))?;
-
-                for j in 0..(num_vertices * va_size) {
-                    blend_weights[j] = cursor.read_u8()?;
-                }
-            },
-            IQMVertexArrayType::Color => {
-                assert_eq!(va_format == IQMVertexArrayFormat::UByte && va_size = 4);
-                cursor.seek(SeekFrom::Start(va_offset))?;
-
-                for j in 0..(num_vertices * va_size) {
-                    colors[j] = cursor.read_u8()?;
+                    normals[j] = cursor.read_f32::<LittleEndian>().unwrap_or(0.0);
                 }
             },
         }
     }
+    
+    // Create our output vertex buffer vector.
+    let mut buffers: Vec<VertexBufferAny> = Vec::with_capacity(num_meshes);
 
-    // Return our meshes
-    meshes
+    // Load the IQM meshes and generate the associated vertex buffers.
+    cursor.seek(SeekFrom::Start(ofs_meshes))?;
+    
+    for i in 0..num_meshes {
+        // Skip the name and material fields.
+        cursor.seek(SeekFrom::Current(8))?;
+
+        let first_vertex = cursor.read_u32::<LittleEndian>()?;
+        let num_vertices = cursor.read_u32::<LittleEndian>()?;
+        let first_triangle = cursor.read_u32::<LittleEndian>()?;
+        let num_triangles = cursor.read_u32::<LittleEndian>()?;
+
+        // Load the selected vertices
+        let mut data: Vec<Vertex> = Vec::with_capacity(num_vertices);
+
+        for j in 0..num_vertices {
+            let id = first_vertex + j;
+            
+            data[j] = Vertex {
+                position: [ positions[(3 * id)],
+                            positions[(3 * id) + 1],
+                            positions[(3 * id) + 2] ],
+                tex_coord: [ tex_coords[(2 * id)],
+                             tex_coords[(2 * id) + 1] ],
+                normal: [ normals[(3 * id)],
+                          normals[(3 * id) + 1],
+                          normals[(3 * id) + 2] ],
+            };
+        }
+        
+        buffers[i] = VertexBuffer::new(display, &data)?.into_vertex_buffer_any();
+    }
+    
+    // Return the vertex buffers.
+    buffers
 }
