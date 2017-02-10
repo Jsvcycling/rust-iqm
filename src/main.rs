@@ -2,6 +2,8 @@
 extern crate glium;
 extern crate byteorder;
 
+use std::io::prelude::*;
+use std::fs::File;
 use std::time::{Duration, Instant};
 use std::process;
 use std::thread;
@@ -21,7 +23,12 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let meshes = iqm::load_iqm(&display, include_bytes!("data/mrfixit.iqm"));
+    let mut f = File::open("data/mrfixit.iqm").unwrap();
+    let mut file_buffer = Vec::new();
+
+    f.read_to_end(&mut file_buffer).unwrap();
+
+    let meshes = iqm::load_iqm(&display, file_buffer);
 
     // Setup Shaders
     let program = program!(&display, 140 => {
@@ -42,10 +49,13 @@ fn main() {
     // The main loop
     loop {
         camera.update();
+
+        let persp_matrix: [[f32; 4]; 4] = camera.get_perspective_matrix().into();
+        let view_matrix: [[f32; 4]; 4] = camera.get_view_matrix().into();
         
         let uniforms = uniform! {
-            persp_matrix: camera.get_perspective_matrix(),
-            view_matrix: camera.get_view_matrix(),
+            persp_matrix: persp_matrix,
+            view_matrix: view_matrix,
         };
 
         let params = glium::DrawParameters {

@@ -44,7 +44,7 @@ pub struct Mesh {
 }
 
 #[allow(unused_variables)]
-pub fn load_iqm(display: &Display, data: &[u8]) -> Vec<Mesh> {
+pub fn load_iqm(display: &Display, data: Vec<u8>) -> Vec<Mesh> {
     #[derive(Clone, Copy)]
     struct Vertex {
         position: [f32; 3],

@@ -1,5 +1,8 @@
 // Based on: https://github.com/tomaka/glium/blob/master/examples/support/camera.rs
 
+extern crate cgmath;
+
+use self::cgmath::Matrix4;
 use glium::glutin::ElementState::{Pressed, Released};
 use glium::glutin::Event;
 use glium::glutin::VirtualKeyCode as KeyCode;
@@ -33,7 +36,7 @@ impl Camera {
         }
     }
 
-    pub fn get_perspective_matrix(&self) -> [[f32; 4]; 4] {
+    pub fn get_perspective_matrix(&self) -> Matrix4<f32> {
         let fov: f32 = 3.141592 / 2.0;
         let z_far = 1024.0;
         let z_near = 0.01;
@@ -41,15 +44,15 @@ impl Camera {
         let f = 1.0 / (fov / 2.0).tan();
 
         // NB: This is in a column-major format (e.g. LoC = column).
-        [
-            [ f / self.aspect_ratio, 0.0, 0.0, 0.0 ],
-            [ 0.0, f, 0.0, 0.0 ],
-            [ 0.0, 0.0, (z_far + z_near) / (z_far - z_near), 1.0 ],
-            [ 0.0, 0.0, -(2.0 * z_far * z_near) / (z_far - z_near), 0.0 ],
-        ]
+        let mat = Matrix4::<f32>::new(f / self.aspect_ratio, 0.0, 0.0, 0.0,
+                                      0.0, f, 0.0, 0.0,
+                                      0.0, 0.0, (z_far + z_near) / (z_far - z_near), 1.0,
+                                      0.0, 0.0, -(2.0 * z_far * z_near) / (z_far - z_near), 0.0);
+
+        mat
     }
 
-    pub fn get_view_matrix(&self) -> [[f32; 4]; 4] {
+    pub fn get_view_matrix(&self) -> Matrix4<f32> {
         // Normalize the direction
         let f = {
             let f = self.direction;
@@ -58,7 +61,7 @@ impl Camera {
             (f.0 / len, f.1 / len, f.2 / len)
         };
 
-        let up = (0.0, 1.0, 0.0);
+        let up = (0.0, 0.0, 1.0);
 
         let s = (f.1 * up.2 - f.2 * up.1,
                  f.2 * up.0 - f.0 * up.2,
@@ -80,12 +83,12 @@ impl Camera {
                  -self.position.0 * f.0 - self.position.1 * f.1 - self.position.2 * f.2);
 
         // NB: This is in a column-major format (e.g. LoC = column).
-        [
-            [ s_norm.0, u.0, f.0, 0.0 ],
-            [ s_norm.1, u.1, f.1, 0.0 ],
-            [ s_norm.2, u.2, f.2, 0.0 ],
-            [ p.0, p.1, p.2, 1.0 ],
-        ]
+        let mat = Matrix4::<f32>::new(s_norm.0, u.0, f.0, 0.0,
+                                      s_norm.1, u.1, f.1, 0.0,
+                                      s_norm.2, u.2, f.2, 0.0,
+                                      p.0, p.1, p.2, 1.0);
+
+        mat
     }
 
     pub fn update(&mut self) {
@@ -97,7 +100,7 @@ impl Camera {
             (f.0 / len, f.1 / len, f.2 / len)
         };
 
-        let up = (0.0, 1.0, 0.0);
+        let up = (0.0, 0.0, 1.0);
 
         let s = (f.1 * up.2 - f.2 * up.1,
                  f.2 * up.0 - f.0 * up.2,
