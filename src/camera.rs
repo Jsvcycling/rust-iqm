@@ -25,7 +25,7 @@ impl Camera {
     pub fn new() -> Camera {
         Camera {
             aspect_ratio: 1024.0 / 768.0,
-            position: Point3 { x: 0.1, y: 0.0, z: 0.0 },
+            position: Point3 { x: 0.1, y: 0.0, z: 0.05 },
             direction: Vector3 { x: -1.0, y: 0.0, z: 0.0 },
             
             moving_up: false,
@@ -54,7 +54,7 @@ impl Camera {
     // TODO: figure out how to generate this matrix using Matrix4::look_at
     pub fn get_view_matrix(&self) -> Matrix4<f32> {
         let f = self.direction.normalize();
-        let up = Vector3::<f32>::unit_y();
+        let up = Vector3::<f32>::unit_z();
         let s = f.cross(up);
         let s_norm = s.normalize();
         let u = s_norm.cross(f);
@@ -75,7 +75,7 @@ impl Camera {
 
     pub fn update(&mut self) {
         let f = self.direction.normalize();
-        let up = Vector3::<f32>::unit_y();
+        let up = Vector3::<f32>::unit_z();
         let s = f.cross(up).normalize();
         let u = s.cross(f);
         
